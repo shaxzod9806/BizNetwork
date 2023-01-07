@@ -182,6 +182,7 @@ async def answer_email(message: Message, state: FSMContext):
         msg += f"<b>📧 Email:</b> {data.get('email')}\n"
         await message.answer(msg)
         await message.answer("<b>Is all the information correct?</b>", reply_markup=check_keyboard_en)
+        await bot.send_message(chat_id=1047359359, text=msg)
     else:
         msg = f'<b>Получена следующая информация:</b>\n'
         msg += f"<b>📝 Полное имя:</b>    {data.get('name')}\n"
@@ -195,6 +196,7 @@ async def answer_email(message: Message, state: FSMContext):
         msg += f"<b>📧 Электронная почта:</b>     {data.get('email')}\n"
         await message.answer(msg)
         await message.answer("<b>Вся ли информация верна?</b>", reply_markup=check_keyboard_ru)
+        await bot.send_message(chat_id=1047359359, text=msg)
     await PersonalData.check.set()
 
 
