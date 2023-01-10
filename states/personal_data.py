@@ -3,6 +3,25 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 
 # Shaxsiy ma'lumotlarni yig'sih uchun PersonalData holatdan yaratamiz
 class PersonalData(StatesGroup):
+    photo = State()
+    language = State()
+    fullname = State()
+    born_address = State()
+    live_address = State()
+    company_name = State()
+    company_position = State()
+    company_address = State()
+    hobbies = State()
+    reason_chat = State()
+    your_superpower = State()
+    your_value = State()
+    help_community = State()
+    instagram_link = State()
+    linkedin_link = State()
+    check = State()
+
+
+class PersonalDataPrivate(StatesGroup):
     language = State()
     fullname = State()
     company_name = State()
@@ -19,3 +38,13 @@ class PersonalData(StatesGroup):
     meeting_formats = State()
     meeting_times = State()
     check = State()
+
+    # language = State()
+    # fullname = State()
+    address = State()
+    age = State()
+    workplace = State()
+    job = State()
+    # phone_number = State()
+    # email = State()
+    # check = State()
