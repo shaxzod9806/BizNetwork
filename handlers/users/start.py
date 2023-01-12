@@ -1,15 +1,17 @@
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.builtin import CommandStart
 
-from keyboards.default.check_keyboard import check_keyboard_en, check_keyboard_ru
+from keyboards.default.check_keyboard import check_keyboard_en, check_keyboard_ru, add_company_en
 from keyboards.default.request_location import get_keyboard
 from keyboards.inline.lang_keyboard import language_keyboard
 from loader import dp, bot
 from aiogram import types
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove, ContentType
 
 from states.personal_data import PersonalData
 from utils.get_address import get_address_name
+
+user_data = {}
 
 
 @dp.message_handler(text='/start')
@@ -45,14 +47,40 @@ async def start_uz(call: CallbackQuery, state: FSMContext):
      """
     if lang == 'en':
         await call.message.answer(txt_en)
-        await call.message.answer('<b>✍ Please enter your fullname:</b>')
+        await call.message.answer('<b>✍ Please enter your image:</b>')
     else:
         await call.message.answer(txt_ru)
         await call.message.answer('<b>✍ Пожалуйста введите свое полное имя:</b>')
-    await PersonalData.fullname.set()
+    await PersonalData.photo.set()
     await state.update_data({
         'language': call.data
     })
+
+
+from pathlib import Path
+
+download_path = Path().joinpath("dowlands", "path")
+download_path.mkdir(parents=True, exist_ok=True)
+
+
+@dp.message_handler(state=PersonalData.photo, content_types='photo')
+async def answer_photo(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get('language')
+    print('=================================')
+    await message.photo[-1].download(destination_dir=download_path)
+    photo_id = message.photo[-1].file_id
+    await message.answer_photo(photo_id)
+    await message.answer_photo(photo_id)
+    await state.update_data(
+        {'photo_id': photo_id,
+         })
+    if lang == 'en':
+        reply = f"<b>📌 Enter your fullname:</b>"
+    else:
+        reply = "<b>:</b>"
+    await message.answer(reply)
+    await PersonalData.fullname.set()
 
 
 @dp.message_handler(state=PersonalData.fullname)
@@ -60,13 +88,14 @@ async def answer_fullname(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
     fullname = message.text
+    print(fullname)
     await state.update_data(
         {'name': fullname,
          'chat_id': message.from_user.id,
          'username': message.from_user.username
          })
     if lang == 'en':
-        reply = "<b>📌 Select your residential address on the map\n or\n" \
+        reply = f"<b>📌 Select your residential address on the map\n or\n" \
                 "Click the button below to share your current location:</b>"
     else:
         reply = "<b>📌 Выберите свой адрес проживания на карте\n или\n" \
@@ -128,10 +157,15 @@ async def answer_born_address(message: Message, state: FSMContext):
 async def answer_company_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
-    company_name = message.text
-    await state.update_data({'company_name': company_name})
+    comp_name = message.text
+    user_id = str(message.from_user.id) + "n"
+    global user_data
+    # user_data = {user_id: {'comp_name': comp_name}}
+    user_data.update({user_id: [{'comp_name': comp_name}]})
+    print(user_data)
+    # await state.update_data({'company': {'company_name': company_name}})
     if lang == 'en':
-        await message.answer('<b>Enter your  company position:</b>')
+        await message.answer(f'<b>Enter your  company position:</b>')
     else:
         await message.answer('<b>Введите свою работу:</b>')
     await PersonalData.company_position.set()
@@ -141,8 +175,12 @@ async def answer_company_name(message: Message, state: FSMContext):
 async def answer_company_position(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
-    company_position = message.text
-    await state.update_data({'company_position': company_position})
+    comp_position = message.text
+    # await state.update_data({'company_position': company_position})
+    user_id = str(message.from_user.id) + "p"
+    # user_data[user_id]['company_position'] = company_position
+    global user_data
+    user_data.update({user_id: [{'comp_position': comp_position}]})
     if lang == 'en':
         reply = "<b>📌 Select your company address on the map\n or\n" \
                 "Click the button below to share your current location:</b>"
@@ -168,7 +206,7 @@ async def answer_re_location_comp(message: Message, state: FSMContext):
     await answer_company_position(message, state)
 
 
-@dp.message_handler(content_types='location', state=PersonalData.company_address)
+@dp.message_handler(state=PersonalData.company_address, content_types='location')
 async def answer_location(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -176,18 +214,59 @@ async def answer_location(message: Message, state: FSMContext):
     lon = message.location.longitude
     address_name = get_address_name(lon, lat)
     if lang == 'en':
-        await message.answer('<b>Your Hobbies:</b>', reply_markup=types.ReplyKeyboardRemove())
+        await message.answer('<b>Do you add company:</b>', reply_markup=add_company_en)
     else:
         await message.answer('<b>Введите свой возраст:</b>', reply_markup=types.ReplyKeyboardRemove())
 
-    await state.update_data({
+    # await state.update_data({
+    #     'comp_location': {'lon': lon, 'lat': lat},
+    #     'comp_country': address_name.get('country'),
+    #     'comp_city': address_name.get('city')
+    # })
+    user_id = str(message.from_user.id)
+    global user_data
+
+    print(user_data)
+    pos = user_id + "p"
+    name = user_id + "n"
+    comp_data = [{
         'comp_location': {'lon': lon, 'lat': lat},
         'comp_country': address_name.get('country'),
-        'comp_city': address_name.get('city')
+        'comp_city': address_name.get('city'),
+        'comp_position': user_data[pos][0],
+        'comp_name': user_data[name][0],
+
+    }, ]
+    await state.update_data({
+        "comp_data": comp_data
     })
-    await PersonalData.hobbies.set()
+    print(comp_data)
+    print(state.get_data('comp_data'))
+    # user_data.pop(user_id)
+    # user_data[user_id]['company_position'] = company_position
+    await PersonalData.add_company.set()
 
 
+@dp.message_handler(state=PersonalData.add_company)
+async def answer_add_company(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get('language')
+    add_company = message.text
+    print(add_company)
+    if lang == 'en':
+        if add_company == '✅ YES':
+            await message.answer('<b>Enter your  company name :</b>')
+            await PersonalData.company_name.set()
+            # await answer_company_name(message, state)
+        if add_company == '❌ NO':
+            print('no')
+            await message.answer('Your Hobbies')
+            await PersonalData.hobbies.set()
+    else:
+        pass
+
+
+# Your Hobbies
 @dp.message_handler(state=PersonalData.hobbies)
 async def answer_hobbies(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -206,7 +285,7 @@ async def answer_reason_chat(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
     reason_chat = message.text
-    await state.update_data({'your superpower': reason_chat})
+    await state.update_data({'reason_chat': reason_chat})
     if lang == 'en':
         await message.answer('<b>Enter your superpower:</b>')
     else:
@@ -234,7 +313,7 @@ async def answer_your_value(message: Message, state: FSMContext):
     your_value = message.text
     await state.update_data({'your_value': your_value})
     if lang == 'en':
-        await message.answer('<b>What kind of help you need from Business Community?:</b>')
+        await message.answer('<b>What kind of help you need from Business Community?</b>')
     else:
         await message.answer('<b>Введите адрес электронной почты:</b>')
     await PersonalData.help_community.set()
@@ -245,9 +324,9 @@ async def answer_help_community(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
     help_community = message.text
-    await state.update_data({'your_value': help_community})
+    await state.update_data({'help_community': help_community})
     if lang == 'en':
-        await message.answer('<b>Enter instagram link:</b>')
+        await message.answer('<b>Enter your instagram link:</b>')
     else:
         await message.answer('<b>Введите адрес электронной почты:</b>')
     await PersonalData.instagram_link.set()
@@ -260,7 +339,7 @@ async def answer_instagram_link(message: Message, state: FSMContext):
     instagram_link = message.text
     await state.update_data({'instagram_link': instagram_link})
     if lang == 'en':
-        await message.answer('<b>Enter linkedin link:</b>')
+        await message.answer('<b>Enter Linkedin link:</b>')
     else:
         await message.answer('<b>Введите адрес электронной почты:</b>')
     await PersonalData.linkedin_link.set()
@@ -272,37 +351,35 @@ async def answer_linkedin_link(message: Message, state: FSMContext):
     await state.update_data({'linkedin_link': linkedin_link})
     data = await state.get_data()
     lang = data.get('language')
+    photo = data.get('photo_id')
+    print(photo)
     if lang == 'en':
         msg = f'<b>The following information has been received:</b>\n'
-        msg += f"<b> fullname:</b>  {data.get('fullname')}\n"
-        msg += f"<b> born_address:</b>   {data.get('born_address')}\n"
-        msg += f"<b> live_address:</b>  {data.get('live_address')}\n"
-        msg += f"<b> company_name:</b>   {data.get('company_name')}\n"
-        msg += f"<b> company_position:</b> {data.get('company_position')}\n"
-        msg += f"<b> company_address:</b>  {data.get('company_address')}\n"
-        msg += f"<b> hobbies :</b>  {data.get('hobbies')}\n"
+        msg += f"<b> Fullname:</b>  {data.get('name')}\n"
+        msg += f"<b> Born address:</b>   {data.get('born_address')}\n"
+        msg += f"<b> Residential address:</b>  {data.get('country')} ,{data.get('city')}\n"
+        comp_data = data.get('comp_data')
+        comp = ''
+        print(comp_data)
+        for i in comp_data:
+            comp += f"<b>Company country: {i['comp_country']}</b>\n"
+            comp += f"<b>Company city: {i['comp_city']}\n</b>"
+            comp += f"<b>Company position: {i['comp_position']['comp_position']}</b>\n"
+            comp += f"<b>Company name: {i['comp_name']['comp_name']}</b>\n"
+        print(comp)
+        msg += comp
+        msg += f"<b> Hobbies :</b>  {data.get('hobbies')}\n"
         msg += f"<b> Telegram:</b>  @{data.get('username')}\n"
-        msg += f"<b> reason_chat:</b> {data.get('reason_chat')}\n"
-        msg += f"<b> your_superpower:</b> {data.get('your_superpower')}\n"
-        msg += f"<b> your_value:</b> {data.get('your_value')}\n"
-        msg += f"<b> help_community:</b> {data.get('help_community')}\n"
-        msg += f"<b> instagram_link:</b> {data.get('instagram_link')}\n"
+        msg += f"<b> Reason_chat:</b> {data.get('reason_chat')}\n"
+        msg += f"<b> Your_superpower:</b> {data.get('your_superpower')}\n"
+        msg += f"<b> Your_value:</b> {data.get('your_value')}\n"
+        msg += f"<b> Help_community:</b> {data.get('help_community')}\n"
+        msg += f"<b> Instagram_link:</b> {data.get('instagram_link')}\n"
         msg += f"<b> linkedin_link:</b> {data.get('linkedin_link')}\n"
-        # photo = State()
-        #     fullname = State()
-        #     born_address = State()
-        #     live_address = State()
-        #     company_name = State()
-        #     company_position = State()
-        #     company_address = State()
-        #     hobbies = State()
-        #     reason_chat = State()
-        #     your_superpower = State()
-        #     your_value = State()
-        #     help_community = State()
-        #     instagram_link = State()
-        #     linkedin_link = State()
+
         await message.answer(msg)
+        await message.answer_photo(photo=photo, caption=msg)
+
         await message.answer("<b>Is all the information correct?</b>", reply_markup=check_keyboard_en)
     else:
         msg = f'<b>Получена следующая информация:</b>\n'

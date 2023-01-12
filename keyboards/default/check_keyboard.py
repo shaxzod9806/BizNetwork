@@ -19,3 +19,23 @@ check_keyboard_ru = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
+
+add_company_en = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='✅ YES'),
+            KeyboardButton(text='❌ NO'),
+        ],
+    ],
+    resize_keyboard=True
+)
+
+add_company_ru = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='✅ ДА'),
+            KeyboardButton(text='❌ НЕТ'),
+        ],
+    ],
+    resize_keyboard=True
+)
