@@ -1,22 +1,20 @@
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.builtin import CommandStart
-
 from keyboards.default.check_keyboard import check_keyboard_en, check_keyboard_ru, add_company_en
 from keyboards.default.request_location import get_keyboard
 from keyboards.inline.lang_keyboard import language_keyboard
 from loader import dp, bot
 from aiogram import types
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove, ContentType
+from aiogram.types import CallbackQuery, Message
 
 from states.personal_data import PersonalData
 from utils.get_address import get_address_name
+from filters import IsPrivate
 
 user_data = {}
 
 
-@dp.message_handler(text='/start')
+@dp.message_handler(IsPrivate(), text='/start')
 async def bot_start(message: types.Message):
-    # await message.answer(f"Salom, {message.from_user.full_name}!")
     text = f"""
             Please select a language ⬇\nПожалуйста, выберите язык ⬇
     """
@@ -25,9 +23,9 @@ async def bot_start(message: types.Message):
     await PersonalData.language.set()
 
 
-@dp.callback_query_handler(state=PersonalData.language)
-async def start_uz(call: CallbackQuery, state: FSMContext):
-    lang = call.data
+@dp.message_handler(IsPrivate(), state=PersonalData.language)
+async def start_uz(message: types.Message, state: FSMContext):
+    lang = 'en' if message.text == "🇺🇸 English" else 'ru'
     # фамилия
     # Имя
     txt_en = """
@@ -46,16 +44,50 @@ async def start_uz(call: CallbackQuery, state: FSMContext):
      Ваша заявка будет отправлена администратору.
      """
     if lang == 'en':
-        await call.message.answer(txt_en)
-        await call.message.answer('<b>✍ Please enter your image:</b>')
+        await message.answer(txt_en)
+        await message.answer('<b>✍ Please enter your image:</b>')
     else:
-        await call.message.answer(txt_ru)
-        await call.message.answer('<b>✍ Пожалуйста введите свое полное имя:</b>')
+        await message.answer(txt_ru)
+        await message.answer('<b>✍ Пожалуйста введите свое полное имя:</b>')
     await PersonalData.photo.set()
     await state.update_data({
-        'language': call.data
+        'language': lang
     })
 
+
+#
+#
+# @dp.callback_query_handler(IsPrivate(), state=PersonalData.language)
+# async def start_uz(call: CallbackQuery, state: FSMContext):
+#     lang = call.data
+#     # фамилия
+#     # Имя
+#     txt_en = """
+#     Sign up
+#     Now you will be asked some questions.
+#     Please, answer each one.
+#     In the end, if everything is correct,
+#     click YES and
+#     your application will be sent to Admin."""
+#     txt_ru = """
+#     Зарегистрироваться
+#      Сейчас вам зададут несколько вопросов.
+#      Пожалуйста, ответьте на каждый.
+#      В конце концов, если все правильно,
+#      нажмите ДА и
+#      Ваша заявка будет отправлена администратору.
+#      """
+#     if lang == 'en':
+#         await call.message.answer(txt_en)
+#         await call.message.answer('<b>✍ Please enter your image:</b>')
+#     else:
+#         await call.message.answer(txt_ru)
+#         await call.message.answer('<b>✍ Пожалуйста введите свое полное имя:</b>')
+#     await PersonalData.photo.set()
+#     await state.update_data({
+#         'language': call.data
+#     })
+#
 
 from pathlib import Path
 
@@ -63,7 +95,7 @@ download_path = Path().joinpath("dowlands", "path")
 download_path.mkdir(parents=True, exist_ok=True)
 
 
-@dp.message_handler(state=PersonalData.photo, content_types='photo')
+@dp.message_handler(IsPrivate(), state=PersonalData.photo, content_types='photo')
 async def answer_photo(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -83,7 +115,7 @@ async def answer_photo(message: Message, state: FSMContext):
     await PersonalData.fullname.set()
 
 
-@dp.message_handler(state=PersonalData.fullname)
+@dp.message_handler(IsPrivate(), state=PersonalData.fullname)
 async def answer_fullname(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -104,7 +136,7 @@ async def answer_fullname(message: Message, state: FSMContext):
     await PersonalData.live_address.set()
 
 
-@dp.message_handler(state=PersonalData.live_address)
+@dp.message_handler(IsPrivate(), state=PersonalData.live_address)
 async def answer_re_location(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -119,7 +151,7 @@ async def answer_re_location(message: Message, state: FSMContext):
     await answer_fullname(message, state)
 
 
-@dp.message_handler(content_types='location', state=PersonalData.live_address)
+@dp.message_handler(IsPrivate(), content_types='location', state=PersonalData.live_address)
 async def answer_location(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -139,7 +171,7 @@ async def answer_location(message: Message, state: FSMContext):
     await PersonalData.born_address.set()
 
 
-@dp.message_handler(state=PersonalData.born_address)
+@dp.message_handler(IsPrivate(), state=PersonalData.born_address)
 async def answer_born_address(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -153,7 +185,7 @@ async def answer_born_address(message: Message, state: FSMContext):
     await PersonalData.company_name.set()
 
 
-@dp.message_handler(state=PersonalData.company_name)
+@dp.message_handler(IsPrivate(), state=PersonalData.company_name)
 async def answer_company_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -171,7 +203,7 @@ async def answer_company_name(message: Message, state: FSMContext):
     await PersonalData.company_position.set()
 
 
-@dp.message_handler(state=PersonalData.company_position)
+@dp.message_handler(IsPrivate(), state=PersonalData.company_position)
 async def answer_company_position(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -191,7 +223,7 @@ async def answer_company_position(message: Message, state: FSMContext):
     await PersonalData.company_address.set()
 
 
-@dp.message_handler(state=PersonalData.company_address)
+@dp.message_handler(IsPrivate(), state=PersonalData.company_address)
 async def answer_re_location_comp(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -206,7 +238,7 @@ async def answer_re_location_comp(message: Message, state: FSMContext):
     await answer_company_position(message, state)
 
 
-@dp.message_handler(state=PersonalData.company_address, content_types='location')
+@dp.message_handler(IsPrivate(), state=PersonalData.company_address, content_types='location')
 async def answer_location(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -247,7 +279,7 @@ async def answer_location(message: Message, state: FSMContext):
     await PersonalData.add_company.set()
 
 
-@dp.message_handler(state=PersonalData.add_company)
+@dp.message_handler(IsPrivate(), state=PersonalData.add_company)
 async def answer_add_company(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -267,7 +299,7 @@ async def answer_add_company(message: Message, state: FSMContext):
 
 
 # Your Hobbies
-@dp.message_handler(state=PersonalData.hobbies)
+@dp.message_handler(IsPrivate(), state=PersonalData.hobbies)
 async def answer_hobbies(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -280,7 +312,7 @@ async def answer_hobbies(message: Message, state: FSMContext):
     await PersonalData.reason_chat.set()
 
 
-@dp.message_handler(state=PersonalData.reason_chat)
+@dp.message_handler(IsPrivate(), state=PersonalData.reason_chat)
 async def answer_reason_chat(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -293,20 +325,20 @@ async def answer_reason_chat(message: Message, state: FSMContext):
     await PersonalData.your_superpower.set()
 
 
-@dp.message_handler(state=PersonalData.your_superpower)
+@dp.message_handler(IsPrivate(), state=PersonalData.your_superpower)
 async def answer_your_superpower(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
     your_superpower = message.text
     await state.update_data({'your_superpower': your_superpower})
     if lang == 'en':
-        await message.answer('<b>How you can be helpful to this community?:</b>')
+        await message.answer('<b>How you can be helpful to this community?</b>')
     else:
         await message.answer('<b>Введите адрес электронной почты:</b>')
     await PersonalData.your_value.set()
 
 
-@dp.message_handler(state=PersonalData.your_value)
+@dp.message_handler(IsPrivate(), state=PersonalData.your_value)
 async def answer_your_value(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -319,7 +351,7 @@ async def answer_your_value(message: Message, state: FSMContext):
     await PersonalData.help_community.set()
 
 
-@dp.message_handler(state=PersonalData.help_community)
+@dp.message_handler(IsPrivate(), state=PersonalData.help_community)
 async def answer_help_community(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -332,7 +364,7 @@ async def answer_help_community(message: Message, state: FSMContext):
     await PersonalData.instagram_link.set()
 
 
-@dp.message_handler(state=PersonalData.instagram_link)
+@dp.message_handler(IsPrivate(), state=PersonalData.instagram_link)
 async def answer_instagram_link(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
@@ -345,7 +377,7 @@ async def answer_instagram_link(message: Message, state: FSMContext):
     await PersonalData.linkedin_link.set()
 
 
-@dp.message_handler(state=PersonalData.linkedin_link)
+@dp.message_handler(IsPrivate(), state=PersonalData.linkedin_link)
 async def answer_linkedin_link(message: Message, state: FSMContext):
     linkedin_link = message.text
     await state.update_data({'linkedin_link': linkedin_link})
@@ -380,7 +412,10 @@ async def answer_linkedin_link(message: Message, state: FSMContext):
         await message.answer(msg)
         await message.answer_photo(photo=photo, caption=msg)
 
-        await message.answer("<b>Is all the information correct?</b>", reply_markup=check_keyboard_en)
+        await message.answer(
+            "<b>We have received your personal information successfully.\n "
+            "you agree to data processing</b>",
+            reply_markup=check_keyboard_en)
     else:
         msg = f'<b>Получена следующая информация:</b>\n'
         msg += f"<b>📝 Полное имя:</b>    {data.get('name')}\n"
@@ -397,14 +432,14 @@ async def answer_linkedin_link(message: Message, state: FSMContext):
     await PersonalData.check.set()
 
 
-@dp.message_handler(state=PersonalData.check)
+@dp.message_handler(IsPrivate(), state=PersonalData.check)
 async def answer_check(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get('language')
     resp = message.text
     if lang == 'en':
         if resp == '✅ YES':
-            await message.answer('<b>We have received your personal information successfully.\n Thank you</b>',
+            await message.answer('<b>Your link: https://t.me/+KNC5z2sG44AxNWZi </b>',
                                  reply_markup=types.ReplyKeyboardRemove()
                                  )
             await state.finish()
