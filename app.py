@@ -12,6 +12,7 @@ async def on_startup(dispatcher):
 
     # Bot ishga tushgani haqida adminga xabar berish
     await on_startup_notify(dispatcher)
+    # await db.add_user()
 
 
 if __name__ == '__main__':
